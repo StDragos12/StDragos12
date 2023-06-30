@@ -1,0 +1,145 @@
+#include <WaspSensorEvent_v30.h>
+#include <WaspFrame.h>
+#include <WaspPWR.h>
+
+float flow;
+int   pir;
+int   levelControl;
+int   hallEffect;
+int   waterPoint;
+int   mainSupply;
+relayClass relay;
+pirSensorClass pirSensor(SOCKET_1);
+liquidLevelClass liquidLevel(SOCKET_2);
+hallSensorClass hall(SOCKET_3);
+liquidPresenceClass liquidPresence(SOCKET_4);
+flowClass yfs401(SENS_FLOW_YFS401);
+
+char node_ID[] = "Node_1_Events";
+
+float readBatteryLevel()
+{
+    float batteryVoltage = PWR.getBatteryLevel();
+    return batteryVoltage;
+}
+
+void setup()
+{
+  USB.ON();
+  USB.println(F("Frame Utility Example for Events Board 3.0"));
+  Events.ON();
+  frame.setID(node_ID);
+  Events.attachInt();
+  yfs401.enableFlowInt();
+}
+
+void loop()
+{
+  float batteryLevel = readBatteryLevel();
+
+    frame.createFrame(ASCII);
+    frame.addSensor(SENSOR_BATTERY, batteryLevel);
+  USB.println(F("enter deep sleep"));
+  PWR.deepSleep("00:00:00:10", RTC_OFFSET, RTC_ALM1_MODE1, SENSOR_ON);
+
+  USB.ON();
+  USB.println(F("wake up\n"));
+  if ( intFlag & RTC_INT )
+  {
+    USB.println(F("-----------------------------"));
+    USB.println(F("RTC INT captured"));
+    USB.println(F("-----------------------------"));
+
+    intFlag &= ~(RTC_INT);
+  }
+
+  if (intFlag & SENS_INT)
+  {
+    interrupt_function();
+  }
+}
+void interrupt_function()
+{
+  Events.detachInt();
+  Events.loadInt();
+
+  if (yfs401.getInt())
+  {
+    USB.println(F("--------------------------------------"));
+    USB.println(F("Interruption from Water flow"));
+    USB.println(F("--------------------------------------"));
+  }
+  
+  if (pirSensor.getInt())
+  {
+    USB.println(F("--------------------------------------"));
+    USB.println(F("Interruption from PIR"));
+    USB.println(F("--------------------------------------"));
+  }
+  
+  if (liquidLevel.getInt())
+  {
+    USB.println(F("--------------------------------------"));
+    USB.println(F("Interruption from Liquid Level"));
+    USB.println(F("--------------------------------------"));
+  }
+  
+  if (hall.getInt())
+  {
+    USB.println(F("--------------------------------------"));
+    USB.println(F("Interruption from Hall effect"));
+    USB.println(F("--------------------------------------"));
+  }
+  
+  if (liquidPresence.getInt())
+  {
+    USB.println(F("--------------------------------------"));
+    USB.println(F("Interruption from Liquid Presence"));
+    USB.println(F("--------------------------------------"));
+  }
+  
+  if (relay.getInt())
+  {
+    USB.println(F("--------------------------------------"));
+    USB.println(F("Interruption from Relay Input"));
+    USB.println(F("--------------------------------------"));
+  }
+
+  flow = yfs401.flowReading();
+  pir = pirSensor.readPirSensor();
+  levelControl = liquidLevel.readliquidLevel();
+  hallEffect = hall.readHallSensor();
+  waterPoint = liquidPresence.readliquidPresence();
+  mainSupply = relay.readInRel();
+  frame.createFrame(ASCII);
+  frame.addSensor(SENSOR_EVENTS_WF, flow);
+  frame.addSensor(SENSOR_EVENTS_PIR, pir);
+  frame.addSensor(SENSOR_EVENTS_LL, levelControl); //Cod in wasp
+
+
+
+
+
+import random
+import time
+import paho.mqtt.publish as publish
+import json
+broker = "mqtt.beia-telemetrie.ro"
+port = 1883
+topic = "training/device/StirbanDragos"
+def generate_random_number():
+    return random.randint(0, 50)
+while True:
+    number = generate_random_number()
+    print (number)
+
+    payload_dict = {
+        "number" : number
+    }
+    publish.single(topic, hostname=broker, port=port, payload=json.dumps(payload_dict))
+    time.sleep(4) // Cod in Python
+  frame.addSensor(SENSOR_EVENTS_HALL, hallEffect);
+  frame.addSensor(SENSOR_EVENTS_LP, waterPoint);
+  frame.addSensor(SENSOR_EVENTS_RELAY_IN, mainSupply);
+  frame.showFrame();
+}
